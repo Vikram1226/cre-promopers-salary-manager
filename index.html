@@ -524,7 +524,7 @@ function renderAttHead() {
 let data = { workers:[], attendance:{}, advances:[] };
 let currentAttendance = {};
 let editWorkerId = null;
-const ADMIN = { user:'admin', pass:'civil123' };
+const ADMIN = { user:'Admin', pass:'CRE123' };
 
 function save(){ localStorage.setItem('civilApp', JSON.stringify(data)); }
 function load(){ const d=localStorage.getItem('civilApp'); if(d) data=JSON.parse(d); }
