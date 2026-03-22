@@ -242,6 +242,7 @@
     <button class="tab-btn" onclick="showTab('attendance',this)">📅 <span class="t" data-k="tabAtt">Attendance</span></button>
     <button class="tab-btn" onclick="showTab('advances',this)">💸 <span class="t" data-k="tabAdv">Advance</span></button>
     <button class="tab-btn" onclick="showTab('history',this)">📜 <span class="t" data-k="tabHist">History</span></button>
+    <button class="tab-btn" onclick="showTab('settings',this)">⚙️ <span class="t" data-k="tabSettings">Settings</span></button>
   </div>
 
   <!-- DASHBOARD -->
@@ -329,6 +330,35 @@
       </table>
     </div>
   </div>
+
+  <!-- SETTINGS -->
+  <div id="tab-settings" class="page">
+    <div class="section-title" style="margin-bottom:24px">⚙️ <span style="color:var(--orange)" class="t" data-k="settings">Settings</span></div>
+    <div style="max-width:460px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px">
+        <div style="font-family:'Baloo Thambi 2',cursive;font-size:17px;color:var(--orange);margin-bottom:20px">🔐 <span class="t" data-k="changePassword">Change Login Password</span></div>
+        <div class="form-group">
+          <label class="t" data-k="newUsername">New Username</label>
+          <input type="text" id="newUser" placeholder="admin" />
+        </div>
+        <div class="form-group">
+          <label class="t" data-k="currentPass">Current Password</label>
+          <input type="password" id="currentPass" placeholder="••••••••" />
+        </div>
+        <div class="form-group">
+          <label class="t" data-k="newPass">New Password</label>
+          <input type="password" id="newPass" placeholder="••••••••" />
+        </div>
+        <div class="form-group">
+          <label class="t" data-k="confirmPass">Confirm New Password</label>
+          <input type="password" id="confirmPass" placeholder="••••••••" />
+        </div>
+        <div id="settingsError" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none"></div>
+        <button class="btn-primary" onclick="changePassword()" id="btnChangePass">🔐 <span class="t" data-k="updatePassword">Update Password</span></button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- WORKER MODAL -->
@@ -397,7 +427,11 @@ const T = {
     sun:'Sun',mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',
     hours:'hrs',totalDays:'Days',salary:'Salary',net:'Net',
     tagFull:'Full',tagPart:'Part',tagOff:'Off',willDeduct:'Will Deduct',
-    noData:'No data',addWorkersFirst:'Add workers first',
+    tabSettings:'Settings',settings:'Settings',changePassword:'Change Login Password',
+    newUsername:'New Username',currentPass:'Current Password',newPass:'New Password',
+    confirmPass:'Confirm New Password',updatePassword:'Update Password',
+    wrongCurrentPass:'❌ Current password is wrong!',passMismatch:'❌ New passwords do not match!',
+    passShort:'❌ Password must be at least 4 characters!',passUpdated:'✅ Password updated successfully!',
     workerAdded:'Worker added!',workerUpdated:'Updated!',workerDeleted:'Deleted!',
     advAdded:'Advance added!',advDeleted:'Deleted!',attSaved:'Attendance saved!',
     fillRequired:'Fill all required fields!',
@@ -422,7 +456,11 @@ const T = {
     sun:'ஞா',mon:'திங்',tue:'செவ்',wed:'புத',thu:'வியா',fri:'வெள்',sat:'சனி',
     hours:'மணி',totalDays:'நாட்கள்',salary:'கூலி',net:'நிகரம்',
     tagFull:'முழு',tagPart:'பகுதி',tagOff:'விடுப்பு',willDeduct:'கழிக்கப்படும்',
-    noData:'தரவு இல்லை',addWorkersFirst:'முதலில் தொழிலாளர்களை சேர்க்கவும்',
+    tabSettings:'அமைப்புகள்',settings:'அமைப்புகள்',changePassword:'உள்நுழைவு கடவுச்சொல் மாற்று',
+    newUsername:'புதிய பயனர் பெயர்',currentPass:'தற்போதைய கடவுச்சொல்',newPass:'புதிய கடவுச்சொல்',
+    confirmPass:'கடவுச்சொல் உறுதிப்படுத்து',updatePassword:'கடவுச்சொல் மாற்று',
+    wrongCurrentPass:'❌ தற்போதைய கடவுச்சொல் தவறு!',passMismatch:'❌ புதிய கடவுச்சொற்கள் பொருந்தவில்லை!',
+    passShort:'❌ குறைந்தது 4 எழுத்துகள் வேண்டும்!',passUpdated:'✅ கடவுச்சொல் மாற்றப்பட்டது!',
     workerAdded:'தொழிலாளர் சேர்க்கப்பட்டார்!',workerUpdated:'திருத்தப்பட்டது!',workerDeleted:'நீக்கப்பட்டது!',
     advAdded:'அட்வான்ஸ் சேர்க்கப்பட்டது!',advDeleted:'நீக்கப்பட்டது!',attSaved:'ஹாஜர் சேமிக்கப்பட்டது!',
     fillRequired:'அனைத்து தகவல்களும் தேவை!',
@@ -466,7 +504,7 @@ function renderAttHead(){
 // ══════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════
-const ADMIN={user:'admin',pass:'civil123'};
+let ADMIN = {user:'admin', pass:'civil123'}; // overwritten on boot from Supabase
 let workers=[], advances=[], currentAttendance={};
 let editWorkerId=null;
 
@@ -567,6 +605,7 @@ function showTab(name,btn){
   if(name==='attendance')loadAttendance();
   if(name==='advances')renderAdvances();
   if(name==='history')loadHistory();
+  if(name==='settings')loadSettingsPage();
 }
 
 // ══════════════════════════════════════════
@@ -891,12 +930,62 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
 });
 
 // ══════════════════════════════════════════
-//  BOOT — test Supabase connection
+//  SETTINGS — Password Change
 // ══════════════════════════════════════════
+function loadSettingsPage(){
+  document.getElementById('newUser').value = ADMIN.user;
+  document.getElementById('currentPass').value = '';
+  document.getElementById('newPass').value = '';
+  document.getElementById('confirmPass').value = '';
+  document.getElementById('settingsError').style.display = 'none';
+}
+
+async function changePassword(){
+  const newUser    = document.getElementById('newUser').value.trim();
+  const currentPw  = document.getElementById('currentPass').value;
+  const newPw      = document.getElementById('newPass').value;
+  const confirmPw  = document.getElementById('confirmPass').value;
+  const errEl      = document.getElementById('settingsError');
+
+  errEl.style.display = 'none';
+
+  if(currentPw !== ADMIN.pass){
+    errEl.textContent = t('wrongCurrentPass'); errEl.style.display='block'; return;
+  }
+  if(newPw !== confirmPw){
+    errEl.textContent = t('passMismatch'); errEl.style.display='block'; return;
+  }
+  if(newPw.length < 4){
+    errEl.textContent = t('passShort'); errEl.style.display='block'; return;
+  }
+
+  setSyncing(true);
+  await sb.from('app_settings').upsert([
+    {key:'admin_user', value: newUser || ADMIN.user},
+    {key:'admin_pass', value: newPw}
+  ]);
+  ADMIN.user = newUser || ADMIN.user;
+  ADMIN.pass = newPw;
+  setSyncing(false);
+
+  document.getElementById('currentPass').value='';
+  document.getElementById('newPass').value='';
+  document.getElementById('confirmPass').value='';
+  showToast(t('passUpdated'),'success');
+}
+
+
 (async()=>{
   document.getElementById('loaderMsg').textContent='Connecting to cloud...';
   try{
-    await sb.from('workers').select('id').limit(1);
+    // Load credentials from Supabase app_settings
+    const {data:settings} = await sb.from('app_settings').select('*');
+    if(settings && settings.length){
+      const u=settings.find(s=>s.key==='admin_user');
+      const p=settings.find(s=>s.key==='admin_pass');
+      if(u) ADMIN.user=u.value;
+      if(p) ADMIN.pass=p.value;
+    }
     document.getElementById('globalLoader').style.display='none';
     document.getElementById('loginPage').style.display='flex';
     applyTranslations();
