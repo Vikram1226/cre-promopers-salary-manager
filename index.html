@@ -5,17 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRE PROMOPERS - Salary Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+Thambi+2:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root {
-    --orange:#FF6B2B; --orange-light:#FF8C5A; --orange-dark:#D94F14;
-    --yellow:#FFB800; --dark:#1A1208; --dark2:#2C1F0A;
-    --card:#2E2010; --text:#F5E6C8; --text-dim:#A88B5E;
-    --green:#4CAF50; --red:#F44336; --blue:#2196F3; --border:#5A4020;
-  }
+  :root{--orange:#FF6B2B;--orange-dark:#D94F14;--yellow:#FFB800;--dark:#1A1208;--dark2:#2C1F0A;
+    --card:#2E2010;--text:#F5E6C8;--text-dim:#A88B5E;--green:#4CAF50;--red:#F44336;--blue:#2196F3;--border:#5A4020;}
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:var(--dark);color:var(--text);font-family:'Noto Sans Tamil',sans-serif;min-height:100vh;
     background-image:radial-gradient(ellipse at 20% 0%,rgba(255,107,43,.15) 0%,transparent 50%),
     radial-gradient(ellipse at 80% 100%,rgba(255,184,0,.1) 0%,transparent 50%);}
+
+  /* LOADER */
+  #globalLoader{position:fixed;inset:0;background:var(--dark);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:9999;gap:16px;}
+  .spinner{width:48px;height:48px;border:4px solid var(--border);border-top-color:var(--orange);
+    border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #loaderMsg{color:var(--text-dim);font-size:14px;}
 
   /* LOGIN */
   #loginPage{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
@@ -25,19 +30,19 @@
   .login-box h1{font-family:'Baloo Thambi 2',cursive;font-size:26px;color:var(--orange);margin-bottom:4px;}
   .login-box p{color:var(--text-dim);font-size:13px;margin-bottom:32px;}
   .form-group{margin-bottom:20px;text-align:left;}
-  .form-group label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;letter-spacing:.5px;}
-  .form-group input,.form-group select{width:100%;padding:12px 16px;background:var(--dark2);border:1px solid var(--border);
-    border-radius:10px;color:var(--text);font-size:15px;outline:none;transition:border .2s;
-    font-family:'Noto Sans Tamil',sans-serif;}
+  .form-group label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;}
+  .form-group input,.form-group select{width:100%;padding:12px 16px;background:var(--dark2);
+    border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;outline:none;
+    font-family:'Noto Sans Tamil',sans-serif;transition:border .2s;}
   .form-group input:focus,.form-group select:focus{border-color:var(--orange);}
   .btn-primary{width:100%;padding:14px;background:linear-gradient(135deg,var(--orange),var(--orange-dark));
     border:none;border-radius:12px;color:white;font-size:16px;font-weight:700;cursor:pointer;
-    font-family:'Baloo Thambi 2',cursive;letter-spacing:.5px;transition:all .2s;
-    box-shadow:0 4px 20px rgba(255,107,43,.4);}
-  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,107,43,.5);}
+    font-family:'Baloo Thambi 2',cursive;transition:all .2s;box-shadow:0 4px 20px rgba(255,107,43,.4);}
+  .btn-primary:hover{transform:translateY(-2px);}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none;}
   .login-error{color:var(--red);font-size:13px;margin-top:12px;}
 
-  /* HEADER */
+  /* APP */
   #app{display:none;}
   .header{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;
     display:flex;align-items:center;justify-content:space-between;height:64px;
@@ -47,6 +52,9 @@
   .header-title{font-family:'Baloo Thambi 2',cursive;font-size:20px;color:var(--orange);}
   .header-sub{font-size:11px;color:var(--text-dim);}
   .header-right{display:flex;align-items:center;gap:10px;}
+  .sync-badge{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--green);
+    background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);border-radius:8px;padding:4px 10px;}
+  .sync-badge.syncing{color:var(--yellow);}
   .lang-toggle{display:flex;background:var(--dark2);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
   .lang-btn{padding:7px 14px;border:none;background:transparent;color:var(--text-dim);
     font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;font-family:'Noto Sans Tamil',sans-serif;}
@@ -55,18 +63,16 @@
     border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;transition:all .2s;}
   .btn-logout:hover{border-color:var(--red);color:var(--red);}
 
-  /* TABS */
   .tabs{display:flex;gap:4px;padding:16px 24px 0;border-bottom:1px solid var(--border);
     background:var(--dark2);overflow-x:auto;}
   .tab-btn{padding:10px 22px;border:none;border-radius:10px 10px 0 0;background:transparent;
     color:var(--text-dim);font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;
     transition:all .2s;font-family:'Noto Sans Tamil',sans-serif;border-bottom:3px solid transparent;}
   .tab-btn.active{color:var(--orange);background:var(--card);border-bottom-color:var(--orange);}
-  .tab-btn:hover:not(.active){color:var(--text);}
+
   .page{display:none;padding:24px;max-width:1100px;margin:0 auto;}
   .page.active{display:block;}
 
-  /* STATS */
   .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px;}
   .stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;
     display:flex;align-items:center;gap:14px;}
@@ -74,16 +80,14 @@
   .stat-num{font-family:'Baloo Thambi 2',cursive;font-size:26px;color:var(--orange);}
   .stat-label{font-size:12px;color:var(--text-dim);}
 
-  /* SECTION */
   .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
   .section-title{font-family:'Baloo Thambi 2',cursive;font-size:20px;color:var(--text);}
   .section-title span{color:var(--orange);}
 
-  /* BUTTONS */
   .btn-add{padding:10px 20px;background:var(--orange);border:none;border-radius:10px;color:white;
     font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;
     font-family:'Noto Sans Tamil',sans-serif;transition:all .2s;}
-  .btn-add:hover{background:var(--orange-dark);transform:translateY(-1px);}
+  .btn-add:hover{background:var(--orange-dark);}
   .btn-sm{padding:6px 14px;border:none;border-radius:8px;font-size:12px;font-weight:600;
     cursor:pointer;transition:all .2s;font-family:'Noto Sans Tamil',sans-serif;}
   .btn-danger{background:rgba(244,67,54,.15);color:var(--red);border:1px solid rgba(244,67,54,.3);}
@@ -93,7 +97,6 @@
   .btn-yellow{background:rgba(255,184,0,.15);color:var(--yellow);border:1px solid rgba(255,184,0,.3);}
   .btn-yellow:hover{background:rgba(255,184,0,.3);}
 
-  /* WORKER CARDS */
   .workers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
   .worker-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;transition:all .2s;}
   .worker-card:hover{border-color:var(--orange);transform:translateY(-2px);}
@@ -102,27 +105,27 @@
     background:linear-gradient(135deg,var(--orange),var(--yellow));
     display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:white;
     font-family:'Baloo Thambi 2',cursive;}
-  .worker-name{font-size:16px;font-weight:700;color:var(--text);}
+  .worker-name{font-size:16px;font-weight:700;}
   .worker-role{font-size:12px;color:var(--text-dim);}
   .worker-salary-badge{display:inline-flex;align-items:center;gap:4px;
     background:rgba(255,107,43,.1);border:1px solid rgba(255,107,43,.3);
     border-radius:8px;padding:4px 10px;font-size:13px;color:var(--orange);margin-bottom:14px;}
   .worker-actions{display:flex;gap:8px;flex-wrap:wrap;}
 
-  /* ATTENDANCE */
   .week-selector{background:var(--card);border:1px solid var(--border);border-radius:14px;
     padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
   .week-selector label{color:var(--text-dim);font-size:13px;font-weight:600;}
   .week-selector input{padding:8px 14px;background:var(--dark2);border:1px solid var(--border);
     border-radius:8px;color:var(--text);font-size:14px;outline:none;}
   .week-selector input:focus{border-color:var(--orange);}
+
   .attendance-table{width:100%;border-collapse:collapse;}
   .attendance-table th{background:var(--dark2);color:var(--text-dim);font-size:12px;font-weight:600;
-    padding:12px 8px;text-align:center;letter-spacing:.3px;}
+    padding:12px 8px;text-align:center;}
   .attendance-table th:first-child{text-align:left;padding-left:16px;}
   .attendance-table td{padding:10px 6px;border-bottom:1px solid var(--border);font-size:14px;text-align:center;}
   .attendance-table td:first-child{text-align:left;padding-left:16px;}
-  .attendance-table tr:hover td{background:rgba(255,107,43,.03);}
+
   .day-cell{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:44px;}
   .day-label-tag{font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;color:white;min-width:32px;text-align:center;}
   .day-label-tag.full{background:var(--green);}
@@ -132,14 +135,12 @@
     border-radius:8px;color:var(--text);font-size:15px;font-weight:700;text-align:center;
     outline:none;transition:border .15s;-moz-appearance:textfield;}
   .hrs-input::-webkit-inner-spin-button,.hrs-input::-webkit-outer-spin-button{display:none;}
-  .hrs-input:focus{border-color:var(--orange);}
   .hrs-input.full{border-color:var(--green);color:var(--green);}
   .hrs-input.part{border-color:var(--yellow);color:var(--yellow);}
   .hrs-input.off{border-color:rgba(244,67,54,.4);color:var(--red);opacity:.7;}
   .days-count{font-weight:700;color:var(--green);font-size:15px;}
   .net-salary{font-family:'Baloo Thambi 2',cursive;font-size:16px;color:var(--orange);}
 
-  /* TABLE */
   .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
   .data-table{width:100%;border-collapse:collapse;}
   .data-table th{background:var(--dark2);color:var(--text-dim);font-size:12px;font-weight:600;padding:14px 18px;text-align:left;}
@@ -151,7 +152,14 @@
   .badge-red{background:rgba(244,67,54,.15);color:var(--red);}
   .badge-yellow{background:rgba(255,184,0,.15);color:var(--yellow);}
 
-  /* MODAL */
+  .summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px;}
+  .summary-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;}
+  .summary-card-label{font-size:12px;color:var(--text-dim);margin-bottom:6px;}
+  .summary-card-value{font-family:'Baloo Thambi 2',cursive;font-size:22px;}
+  .summary-card-value.orange{color:var(--orange);}
+  .summary-card-value.green{color:var(--green);}
+  .summary-card-value.red{color:var(--red);}
+
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;
     justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(4px);}
   .modal-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;
@@ -160,20 +168,9 @@
   .modal-actions{display:flex;gap:10px;margin-top:24px;}
   .modal-actions .btn-primary{flex:1;}
   .btn-cancel{flex:1;padding:12px;background:transparent;border:1px solid var(--border);
-    border-radius:12px;color:var(--text-dim);font-size:15px;cursor:pointer;transition:all .2s;}
-  .btn-cancel:hover{border-color:var(--text-dim);color:var(--text);}
+    border-radius:12px;color:var(--text-dim);font-size:15px;cursor:pointer;}
+  .btn-cancel:hover{color:var(--text);}
 
-  /* SUMMARY */
-  .summary-section{margin-bottom:28px;}
-  .summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
-  .summary-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;}
-  .summary-card-label{font-size:12px;color:var(--text-dim);margin-bottom:6px;}
-  .summary-card-value{font-family:'Baloo Thambi 2',cursive;font-size:22px;color:var(--text);}
-  .summary-card-value.orange{color:var(--orange);}
-  .summary-card-value.green{color:var(--green);}
-  .summary-card-value.red{color:var(--red);}
-
-  /* TOAST */
   .toast{position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--card);
     border:1px solid var(--border);border-radius:12px;padding:14px 20px;
     display:flex;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(0,0,0,.4);
@@ -182,8 +179,9 @@
   .toast.success{border-left:4px solid var(--green);}
   .toast.error{border-left:4px solid var(--red);}
   .toast.info{border-left:4px solid var(--orange);}
+
   .empty-state{text-align:center;padding:48px 20px;color:var(--text-dim);}
-  .empty-state .empty-icon{font-size:48px;margin-bottom:12px;}
+  .empty-icon{font-size:48px;margin-bottom:12px;}
 
   @media(max-width:600px){
     .header{padding:0 14px;}
@@ -191,34 +189,34 @@
     .tabs{padding:12px 14px 0;}
     .tab-btn{padding:8px 12px;font-size:12px;}
     .workers-grid{grid-template-columns:1fr;}
-    .lang-btn{padding:5px 10px;font-size:12px;}
+    .sync-badge span{display:none;}
   }
 </style>
 </head>
 <body>
 
-<!-- LOGIN PAGE -->
-<div id="loginPage">
+<!-- GLOBAL LOADER -->
+<div id="globalLoader">
+  <div class="spinner"></div>
+  <div id="loaderMsg">Connecting to cloud...</div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginPage" style="display:none">
   <div class="login-box">
     <div class="login-icon">🏗️</div>
     <h1>CRE PROMOPERS</h1>
     <p id="loginSubtitle">Salary Management System</p>
     <div>
-      <div class="form-group">
-        <label id="lblUser">USERNAME</label>
-        <input type="text" id="loginUser" placeholder="admin" />
-      </div>
-      <div class="form-group">
-        <label id="lblPass">PASSWORD</label>
-        <input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()" />
-      </div>
+      <div class="form-group"><label id="lblUser">USERNAME</label><input type="text" id="loginUser" placeholder="admin" /></div>
+      <div class="form-group"><label id="lblPass">PASSWORD</label><input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" /></div>
       <button class="btn-primary" onclick="doLogin()" id="btnLogin">🔐 Login</button>
       <div class="login-error" id="loginError"></div>
     </div>
   </div>
 </div>
 
-<!-- MAIN APP -->
+<!-- APP -->
 <div id="app">
   <div class="header">
     <div class="header-left">
@@ -229,15 +227,16 @@
       </div>
     </div>
     <div class="header-right">
+      <div class="sync-badge" id="syncBadge">☁️ <span>Cloud Synced</span></div>
       <div class="lang-toggle">
         <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
         <button class="lang-btn" id="btnTA" onclick="setLang('ta')">தமிழ்</button>
       </div>
-      <button class="btn-logout" id="btnLogout" onclick="doLogout()">Logout ↗</button>
+      <button class="btn-logout" onclick="doLogout()" id="btnLogout">Logout ↗</button>
     </div>
   </div>
 
-  <div class="tabs" id="tabBar">
+  <div class="tabs">
     <button class="tab-btn active" onclick="showTab('dashboard',this)">📊 <span class="t" data-k="tabDash">Dashboard</span></button>
     <button class="tab-btn" onclick="showTab('workers',this)">👷 <span class="t" data-k="tabWorkers">Workers</span></button>
     <button class="tab-btn" onclick="showTab('attendance',this)">📅 <span class="t" data-k="tabAtt">Attendance</span></button>
@@ -252,17 +251,13 @@
       <div class="section-title"><span class="t" data-k="thisWeek">This Week</span> — <span id="dashWeekLabel">-</span></div>
     </div>
     <div class="summary-cards" id="dashWeekSummary"></div>
-    <br>
     <div class="section-title" style="margin-bottom:14px"><span class="t" data-k="workerStatus">Worker Status</span></div>
     <div class="table-wrap">
       <table class="data-table">
         <thead><tr>
-          <th class="t" data-k="name">Name</th>
-          <th class="t" data-k="role">Role</th>
-          <th class="t" data-k="dailyWage">Daily Wage</th>
-          <th class="t" data-k="days">Days</th>
-          <th>Advance</th>
-          <th class="t" data-k="netSalary">Net Salary</th>
+          <th class="t" data-k="name">Name</th><th class="t" data-k="role">Role</th>
+          <th class="t" data-k="dailyWage">Daily Wage</th><th class="t" data-k="days">Days</th>
+          <th>Advance</th><th class="t" data-k="netSalary">Net Salary</th>
         </tr></thead>
         <tbody id="dashWorkerBody"></tbody>
       </table>
@@ -284,19 +279,16 @@
     <div class="week-selector">
       <label class="t" data-k="selectWeek">Select Week:</label>
       <input type="week" id="weekPicker" onchange="loadAttendance()" />
-      <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--text-dim);flex-wrap:wrap;">
-        <span>⏱️ <span class="t" data-k="enterHours">Enter hours per day</span></span>
-        <span><span style="background:var(--green);color:white;padding:2px 8px;border-radius:5px;font-weight:700">8</span> = <span class="t" data-k="fullDay">Full Day</span></span>
-        <span><span style="background:var(--yellow);color:#1a1208;padding:2px 8px;border-radius:5px;font-weight:700">4</span> = <span class="t" data-k="halfDay">Half Day</span></span>
-        <span><span style="background:rgba(244,67,54,.25);color:var(--red);padding:2px 8px;border-radius:5px;font-weight:700">0</span> = <span class="t" data-k="absent">Absent</span></span>
+      <div style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text-dim);flex-wrap:wrap">
+        <span>⏱️ <span class="t" data-k="enterHours">Enter hours</span></span>
+        <span><b style="background:var(--green);color:white;padding:1px 7px;border-radius:4px">8</b> = <span class="t" data-k="fullDay">Full</span></span>
+        <span><b style="background:var(--yellow);color:#1a1208;padding:1px 7px;border-radius:4px">4</b> = <span class="t" data-k="halfDay">Half</span></span>
+        <span><b style="background:rgba(244,67,54,.25);color:var(--red);padding:1px 7px;border-radius:4px">0</b> = <span class="t" data-k="absent">Absent</span></span>
       </div>
       <button class="btn-add" onclick="saveAttendance()" style="margin-left:auto">💾 <span class="t" data-k="save">Save</span></button>
     </div>
     <div class="table-wrap" style="overflow-x:auto">
-      <table class="attendance-table" id="attTable">
-        <thead id="attHead"></thead>
-        <tbody id="attendanceBody"></tbody>
-      </table>
+      <table class="attendance-table"><thead id="attHead"></thead><tbody id="attendanceBody"></tbody></table>
     </div>
   </div>
 
@@ -309,12 +301,9 @@
     <div class="table-wrap">
       <table class="data-table">
         <thead><tr>
-          <th class="t" data-k="date">Date</th>
-          <th class="t" data-k="name">Name</th>
-          <th class="t" data-k="reason">Reason</th>
-          <th class="t" data-k="amount">Amount</th>
-          <th class="t" data-k="status">Status</th>
-          <th class="t" data-k="action">Action</th>
+          <th class="t" data-k="date">Date</th><th class="t" data-k="name">Name</th>
+          <th class="t" data-k="reason">Reason</th><th class="t" data-k="amount">Amount</th>
+          <th class="t" data-k="status">Status</th><th class="t" data-k="action">Action</th>
         </tr></thead>
         <tbody id="advancesBody"></tbody>
       </table>
@@ -328,14 +317,12 @@
       <label class="t" data-k="week">Week:</label>
       <input type="week" id="historyWeek" onchange="loadHistory()" />
     </div>
-    <div class="summary-section"><div class="summary-cards" id="historySummary"></div></div>
+    <div class="summary-cards" id="historySummary"></div>
     <div class="table-wrap">
       <table class="data-table">
         <thead><tr>
-          <th class="t" data-k="name">Name</th>
-          <th class="t" data-k="days">Days</th>
-          <th class="t" data-k="grossSalary">Gross Salary</th>
-          <th>Advance</th>
+          <th class="t" data-k="name">Name</th><th class="t" data-k="days">Days</th>
+          <th class="t" data-k="grossSalary">Gross</th><th>Advance</th>
           <th class="t" data-k="netSalary">Net Salary</th>
         </tr></thead>
         <tbody id="historyBody"></tbody>
@@ -349,9 +336,9 @@
   <div class="modal-box">
     <div class="modal-title" id="workerModalTitle">👷 Add Worker</div>
     <div>
-      <div class="form-group"><label class="t" data-k="name">Name</label> <span style="color:var(--red)">*</span><input id="wName" /></div>
-      <div class="form-group"><label class="t" data-k="role">Role</label><input id="wRole" placeholder="Mason / Helper / Carpenter..." /></div>
-      <div class="form-group"><label class="t" data-k="dailyWage">Daily Wage (₹)</label> <span style="color:var(--red)">*</span><input id="wSalary" type="number" placeholder="600" /></div>
+      <div class="form-group"><label class="t" data-k="name">Name</label><input id="wName" /></div>
+      <div class="form-group"><label class="t" data-k="role">Role</label><input id="wRole" placeholder="Mason / Helper..." /></div>
+      <div class="form-group"><label class="t" data-k="dailyWage">Daily Wage (₹)</label><input id="wSalary" type="number" placeholder="600" /></div>
       <div class="form-group"><label class="t" data-k="mobile">Mobile</label><input id="wPhone" placeholder="9876543210" /></div>
     </div>
     <div class="modal-actions">
@@ -366,12 +353,9 @@
   <div class="modal-box">
     <div class="modal-title" id="advModalTitle">💸 Add Advance</div>
     <div>
-      <div class="form-group">
-        <label class="t" data-k="worker">Worker</label> <span style="color:var(--red)">*</span>
-        <select id="advWorker"></select>
-      </div>
-      <div class="form-group"><label class="t" data-k="amount">Amount (₹)</label> <span style="color:var(--red)">*</span><input id="advAmount" type="number" placeholder="500" /></div>
-      <div class="form-group"><label class="t" data-k="date">Date</label> <span style="color:var(--red)">*</span><input id="advDate" type="date" /></div>
+      <div class="form-group"><label class="t" data-k="worker">Worker</label><select id="advWorker"></select></div>
+      <div class="form-group"><label class="t" data-k="amount">Amount (₹)</label><input id="advAmount" type="number" /></div>
+      <div class="form-group"><label class="t" data-k="date">Date</label><input id="advDate" type="date" /></div>
       <div class="form-group"><label class="t" data-k="reason">Reason</label><input id="advReason" placeholder="Personal / Medical..." /></div>
     </div>
     <div class="modal-actions">
@@ -381,166 +365,130 @@
   </div>
 </div>
 
-<div class="toast" id="toast">
-  <span id="toastIcon">✅</span>
-  <span id="toastMsg">Saved!</span>
-</div>
+<div class="toast" id="toast"><span id="toastIcon">✅</span><span id="toastMsg"></span></div>
 
 <script>
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
+//  SUPABASE INIT
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'https://tamuapfdzkbcuemszuwf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhbXVhcGZkemtiY3VlbXN6dXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MDM4MTMsImV4cCI6MjA4ODM3OTgxM30.xU1aE0CDztRDO62_phnLrFieIGBFS-tIU6fAsK8Jbgg';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ══════════════════════════════════════════
 //  TRANSLATIONS
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 const T = {
-  en: {
-    loginSubtitle:'Salary Management System', lblUser:'USERNAME', lblPass:'PASSWORD',
-    btnLogin:'🔐 Login', loginErr:'❌ Invalid username or password!',
-    headerSub:'Salary Management System', btnLogout:'Logout ↗',
-    tabDash:'Dashboard', tabWorkers:'Workers', tabAtt:'Attendance',
-    tabAdv:'Advance', tabHist:'History',
-    thisWeek:'This Week', workerStatus:'Worker Status',
-    workers:'Workers', addWorker:'Add Worker',
-    weeklyAtt:'Weekly Attendance', selectWeek:'Select Week:',
-    enterHours:'Enter hours per day', fullDay:'Full Day', halfDay:'Half Day', absent:'Absent',
-    save:'Save',
-    advanceLoans:'Advance / Loans', addAdvance:'Add Advance',
-    salaryHistory:'Salary History', week:'Week:',
-    // dashboard stats
-    totalWorkers:'Total Workers', attWeeks:'Attendance Weeks',
-    totalAdv:'Total Advance', weekNet:'This Week Net',
-    totalSalary:'Total Salary', netToPay:'Net to Pay',
-    // table headers
-    name:'Name', role:'Role', dailyWage:'Daily Wage', days:'Days',
-    netSalary:'Net Salary', grossSalary:'Gross Salary', date:'Date',
-    reason:'Reason', amount:'Amount', status:'Status', action:'Action',
-    mobile:'Mobile', worker:'Worker',
-    // worker card
-    edit:'✏️ Edit', delete:'🗑️ Delete', advance:'💸 Advance',
-    // attendance table
-    sun:'Sun', mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat',
-    hours:'hrs', totalDays:'Days', salary:'Salary', net:'Net',
-    // full/part/off tags
-    tagFull:'Full', tagPart:'Part', tagOff:'Off',
-    // advances table
-    willDeduct:'Will Deduct',
-    // history
-    // misc
-    noData:'No data found', addWorkersFirst:'Please add workers first',
-    workerAdded:'Worker added!', workerUpdated:'Updated!', workerDeleted:'Deleted!',
-    advAdded:'Advance added!', advDeleted:'Deleted!', attSaved:'Attendance saved!',
-    fillRequired:'Please fill all required fields!',
-    confirmDeleteWorker:'Delete this worker?', confirmDeleteAdv:'Delete this advance?',
-    addWorkerTitle:'👷 Add Worker', editWorkerTitle:'✏️ Edit Worker',
-    cancel:'Cancel',
-    hrPerDay:'hr/day', hrRate:'₹/hr',
-    totalHours:'Total hrs',
+  en:{
+    loginSubtitle:'Salary Management System',lblUser:'USERNAME',lblPass:'PASSWORD',
+    btnLogin:'🔐 Login',loginErr:'❌ Invalid username or password!',
+    headerSub:'Salary Management System',btnLogout:'Logout ↗',
+    tabDash:'Dashboard',tabWorkers:'Workers',tabAtt:'Attendance',tabAdv:'Advance',tabHist:'History',
+    thisWeek:'This Week',workerStatus:'Worker Status',workers:'Workers',addWorker:'Add Worker',
+    weeklyAtt:'Weekly Attendance',selectWeek:'Select Week:',enterHours:'Enter hours',
+    fullDay:'Full Day',halfDay:'Half Day',absent:'Absent',save:'Save',
+    advanceLoans:'Advance / Loans',addAdvance:'Add Advance',salaryHistory:'Salary History',week:'Week:',
+    totalWorkers:'Total Workers',attWeeks:'Attendance Weeks',totalAdv:'Total Advance',weekNet:'This Week Net',
+    totalSalary:'Total Salary',netToPay:'Net to Pay',
+    name:'Name',role:'Role',dailyWage:'Daily Wage',days:'Days',netSalary:'Net Salary',
+    grossSalary:'Gross Salary',date:'Date',reason:'Reason',amount:'Amount',status:'Status',action:'Action',
+    mobile:'Mobile',worker:'Worker',
+    edit:'✏️ Edit',delete:'🗑️ Delete',advance:'💸 Advance',
+    sun:'Sun',mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',
+    hours:'hrs',totalDays:'Days',salary:'Salary',net:'Net',
+    tagFull:'Full',tagPart:'Part',tagOff:'Off',willDeduct:'Will Deduct',
+    noData:'No data',addWorkersFirst:'Add workers first',
+    workerAdded:'Worker added!',workerUpdated:'Updated!',workerDeleted:'Deleted!',
+    advAdded:'Advance added!',advDeleted:'Deleted!',attSaved:'Attendance saved!',
+    fillRequired:'Fill all required fields!',
+    confirmDeleteWorker:'Delete this worker?',confirmDeleteAdv:'Delete this advance?',
+    addWorkerTitle:'👷 Add Worker',editWorkerTitle:'✏️ Edit Worker',cancel:'Cancel',
   },
-  ta: {
-    loginSubtitle:'கூலி மேலாண்மை அமைப்பு', lblUser:'பயனர் பெயர்', lblPass:'கடவுச்சொல்',
-    btnLogin:'🔐 உள்நுழை', loginErr:'❌ தவறான username அல்லது password!',
-    headerSub:'கூலி மேலாண்மை அமைப்பு', btnLogout:'வெளியேறு ↗',
-    tabDash:'டாஷ்போர்டு', tabWorkers:'தொழிலாளர்கள்', tabAtt:'ஹாஜர்',
-    tabAdv:'அட்வான்ஸ்', tabHist:'வரலாறு',
-    thisWeek:'இந்த வாரம்', workerStatus:'தொழிலாளர் நிலை',
-    workers:'தொழிலாளர்கள்', addWorker:'புதியவர் சேர்',
-    weeklyAtt:'வாராந்திர ஹாஜர்', selectWeek:'வாரம் தேர்ந்தெடு:',
-    enterHours:'ஒவ்வொரு நாளும் மணி நேரம் போடுங்க', fullDay:'முழு நாள்', halfDay:'அரை நாள்', absent:'விடுப்பு',
-    save:'சேமி',
-    advanceLoans:'அட்வான்ஸ் / கடன்', addAdvance:'அட்வான்ஸ் சேர்',
-    salaryHistory:'கூலி வரலாறு', week:'வாரம்:',
-    totalWorkers:'மொத்த தொழிலாளர்கள்', attWeeks:'ஹாஜர் வாரங்கள்',
-    totalAdv:'மொத்த அட்வான்ஸ்', weekNet:'இந்த வாரம் நிகரம்',
-    totalSalary:'மொத்த கூலி', netToPay:'கொடுக்க வேண்டியது',
-    name:'பெயர்', role:'வேலை வகை', dailyWage:'தினக் கூலி', days:'நாட்கள்',
-    netSalary:'நிகர கூலி', grossSalary:'மொத்த கூலி', date:'தேதி',
-    reason:'காரணம்', amount:'தொகை', status:'நிலை', action:'செயல்',
-    mobile:'மொபைல்', worker:'தொழிலாளர்',
-    edit:'✏️ திருத்து', delete:'🗑️ நீக்கு', advance:'💸 அட்வான்ஸ்',
-    sun:'ஞா', mon:'திங்', tue:'செவ்', wed:'புத', thu:'வியா', fri:'வெள்', sat:'சனி',
-    hours:'மணி', totalDays:'நாட்கள்', salary:'கூலி', net:'நிகரம்',
-    tagFull:'முழு', tagPart:'பகுதி', tagOff:'விடுப்பு',
-    willDeduct:'கழிக்கப்படும்',
-    noData:'தரவு இல்லை', addWorkersFirst:'முதலில் தொழிலாளர்களை சேர்க்கவும்',
-    workerAdded:'தொழிலாளர் சேர்க்கப்பட்டார்!', workerUpdated:'திருத்தப்பட்டது!', workerDeleted:'நீக்கப்பட்டது!',
-    advAdded:'அட்வான்ஸ் சேர்க்கப்பட்டது!', advDeleted:'நீக்கப்பட்டது!', attSaved:'ஹாஜர் சேமிக்கப்பட்டது!',
+  ta:{
+    loginSubtitle:'கூலி மேலாண்மை அமைப்பு',lblUser:'பயனர் பெயர்',lblPass:'கடவுச்சொல்',
+    btnLogin:'🔐 உள்நுழை',loginErr:'❌ தவறான username அல்லது password!',
+    headerSub:'கூலி மேலாண்மை அமைப்பு',btnLogout:'வெளியேறு ↗',
+    tabDash:'டாஷ்போர்டு',tabWorkers:'தொழிலாளர்கள்',tabAtt:'ஹாஜர்',tabAdv:'அட்வான்ஸ்',tabHist:'வரலாறு',
+    thisWeek:'இந்த வாரம்',workerStatus:'தொழிலாளர் நிலை',workers:'தொழிலாளர்கள்',addWorker:'புதியவர் சேர்',
+    weeklyAtt:'வாராந்திர ஹாஜர்',selectWeek:'வாரம் தேர்ந்தெடு:',enterHours:'மணி நேரம் போடுங்க',
+    fullDay:'முழு நாள்',halfDay:'அரை நாள்',absent:'விடுப்பு',save:'சேமி',
+    advanceLoans:'அட்வான்ஸ் / கடன்',addAdvance:'அட்வான்ஸ் சேர்',salaryHistory:'கூலி வரலாறு',week:'வாரம்:',
+    totalWorkers:'மொத்த தொழிலாளர்கள்',attWeeks:'ஹாஜர் வாரங்கள்',totalAdv:'மொத்த அட்வான்ஸ்',weekNet:'இந்த வாரம் நிகரம்',
+    totalSalary:'மொத்த கூலி',netToPay:'கொடுக்க வேண்டியது',
+    name:'பெயர்',role:'வேலை வகை',dailyWage:'தினக் கூலி',days:'நாட்கள்',netSalary:'நிகர கூலி',
+    grossSalary:'மொத்த கூலி',date:'தேதி',reason:'காரணம்',amount:'தொகை',status:'நிலை',action:'செயல்',
+    mobile:'மொபைல்',worker:'தொழிலாளர்',
+    edit:'✏️ திருத்து',delete:'🗑️ நீக்கு',advance:'💸 அட்வான்ஸ்',
+    sun:'ஞா',mon:'திங்',tue:'செவ்',wed:'புத',thu:'வியா',fri:'வெள்',sat:'சனி',
+    hours:'மணி',totalDays:'நாட்கள்',salary:'கூலி',net:'நிகரம்',
+    tagFull:'முழு',tagPart:'பகுதி',tagOff:'விடுப்பு',willDeduct:'கழிக்கப்படும்',
+    noData:'தரவு இல்லை',addWorkersFirst:'முதலில் தொழிலாளர்களை சேர்க்கவும்',
+    workerAdded:'தொழிலாளர் சேர்க்கப்பட்டார்!',workerUpdated:'திருத்தப்பட்டது!',workerDeleted:'நீக்கப்பட்டது!',
+    advAdded:'அட்வான்ஸ் சேர்க்கப்பட்டது!',advDeleted:'நீக்கப்பட்டது!',attSaved:'ஹாஜர் சேமிக்கப்பட்டது!',
     fillRequired:'அனைத்து தகவல்களும் தேவை!',
-    confirmDeleteWorker:'இந்த தொழிலாளரை நீக்கவா?', confirmDeleteAdv:'இந்த அட்வான்ஸ்-ஐ நீக்கவா?',
-    addWorkerTitle:'👷 புதிய தொழிலாளர்', editWorkerTitle:'✏️ தொழிலாளர் திருத்து',
-    cancel:'ரத்து',
-    hrPerDay:'மணி/நாள்', hrRate:'₹/மணி',
-    totalHours:'மொத்த மணி',
+    confirmDeleteWorker:'இந்த தொழிலாளரை நீக்கவா?',confirmDeleteAdv:'இந்த அட்வான்ஸ்-ஐ நீக்கவா?',
+    addWorkerTitle:'👷 புதிய தொழிலாளர்',editWorkerTitle:'✏️ தொழிலாளர் திருத்து',cancel:'ரத்து',
   }
 };
+let lang='en';
+function t(k){return T[lang][k]||T.en[k]||k;}
 
-let lang = 'en';
-function t(k){ return T[lang][k] || T['en'][k] || k; }
-
-function setLang(l) {
-  lang = l;
-  document.getElementById('btnEN').classList.toggle('active', l==='en');
-  document.getElementById('btnTA').classList.toggle('active', l==='ta');
+function setLang(l){
+  lang=l;
+  document.getElementById('btnEN').classList.toggle('active',l==='en');
+  document.getElementById('btnTA').classList.toggle('active',l==='ta');
   applyTranslations();
-  // re-render all dynamic content
-  renderDashboard();
-  renderWorkers();
-  renderAttendanceTable();
-  renderAdvances();
-  loadHistory();
+  renderDashboard();renderWorkers();renderAttendanceTable();renderAdvances();loadHistory();
 }
-
-function applyTranslations() {
-  // Static .t elements
-  document.querySelectorAll('.t[data-k]').forEach(el => {
-    el.textContent = t(el.dataset.k);
-  });
-  // Login page
-  document.getElementById('loginSubtitle').textContent = t('loginSubtitle');
-  document.getElementById('lblUser').textContent = t('lblUser');
-  document.getElementById('lblPass').textContent = t('lblPass');
-  document.getElementById('btnLogin').textContent = t('btnLogin');
-  // Header
-  document.getElementById('headerSub').textContent = t('headerSub');
-  document.getElementById('btnLogout').textContent = t('btnLogout');
-  // Modal buttons
-  document.getElementById('btnCancelWorker').textContent = t('cancel');
-  document.getElementById('btnSaveWorker').textContent = '✅ ' + t('save');
-  document.getElementById('btnCancelAdv').textContent = t('cancel');
-  document.getElementById('btnSaveAdv').textContent = '✅ ' + t('save');
-  // Attendance table header
+function applyTranslations(){
+  document.querySelectorAll('.t[data-k]').forEach(el=>el.textContent=t(el.dataset.k));
+  document.getElementById('loginSubtitle').textContent=t('loginSubtitle');
+  document.getElementById('lblUser').textContent=t('lblUser');
+  document.getElementById('lblPass').textContent=t('lblPass');
+  document.getElementById('btnLogin').textContent=t('btnLogin');
+  document.getElementById('headerSub').textContent=t('headerSub');
+  document.getElementById('btnLogout').textContent=t('btnLogout');
+  document.getElementById('btnCancelWorker').textContent=t('cancel');
+  document.getElementById('btnSaveWorker').textContent='✅ '+t('save');
+  document.getElementById('btnCancelAdv').textContent=t('cancel');
+  document.getElementById('btnSaveAdv').textContent='✅ '+t('save');
   renderAttHead();
 }
-
-function renderAttHead() {
-  const days = ['sun','mon','tue','wed','thu','fri','sat'];
-  document.getElementById('attHead').innerHTML = `<tr>
+function renderAttHead(){
+  const days=['sun','mon','tue','wed','thu','fri','sat'];
+  document.getElementById('attHead').innerHTML=`<tr>
     <th style="text-align:left">${t('name')}</th>
     ${days.map(d=>`<th>${t(d)}<br><span style="font-weight:400;font-size:10px;opacity:.6">${t('hours')}</span></th>`).join('')}
     <th>${t('totalDays')}</th><th>${t('salary')}</th><th>Advance</th><th>${t('net')}</th>
   </tr>`;
 }
 
-// ═══════════════════════════════════════════
-//  DATA & STATE
-// ═══════════════════════════════════════════
-let data = { workers:[], attendance:{}, advances:[] };
-let currentAttendance = {};
-let editWorkerId = null;
-const ADMIN = { user:'Admin', pass:'CRE123' };
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+const ADMIN={user:'admin',pass:'civil123'};
+let workers=[], advances=[], currentAttendance={};
+let editWorkerId=null;
 
-function save(){ localStorage.setItem('civilApp', JSON.stringify(data)); }
-function load(){ const d=localStorage.getItem('civilApp'); if(d) data=JSON.parse(d); }
+// Sync status
+function setSyncing(on){
+  const b=document.getElementById('syncBadge');
+  b.className='sync-badge'+(on?' syncing':'');
+  b.innerHTML=on?'⏳ <span>Syncing...</span>':'☁️ <span>Cloud Synced</span>';
+}
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 //  LOGIN
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 function doLogin(){
   const u=document.getElementById('loginUser').value.trim();
   const p=document.getElementById('loginPass').value;
-  if(u===ADMIN.user && p===ADMIN.pass){
+  if(u===ADMIN.user&&p===ADMIN.pass){
     document.getElementById('loginPage').style.display='none';
     document.getElementById('app').style.display='block';
-    init();
+    startApp();
   } else {
-    document.getElementById('loginError').textContent = t('loginErr');
+    document.getElementById('loginError').textContent=t('loginErr');
   }
 }
 function doLogout(){
@@ -548,100 +496,105 @@ function doLogout(){
   document.getElementById('app').style.display='none';
   document.getElementById('loginUser').value='';
   document.getElementById('loginPass').value='';
-  document.getElementById('loginError').textContent='';
 }
 
-// ═══════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════
-function init(){
-  load();
+// ══════════════════════════════════════════
+//  START APP — load all data from Supabase
+// ══════════════════════════════════════════
+async function startApp(){
+  setSyncing(true);
+  await loadAllData();
+  setSyncing(false);
   const now=new Date(), week=getWeekStr(now);
   document.getElementById('weekPicker').value=week;
   document.getElementById('historyWeek').value=week;
   document.getElementById('advDate').value=now.toISOString().split('T')[0];
   applyTranslations();
-  renderDashboard(); renderWorkers(); loadAttendance(); renderAdvances(); loadHistory();
+  renderDashboard();renderWorkers();loadAttendance();renderAdvances();loadHistory();
 }
 
-// ═══════════════════════════════════════════
-//  TABS
-// ═══════════════════════════════════════════
-function showTab(name, btn){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  if(btn) btn.classList.add('active');
-  if(name==='dashboard') renderDashboard();
-  if(name==='workers') renderWorkers();
-  if(name==='attendance') loadAttendance();
-  if(name==='advances') renderAdvances();
-  if(name==='history') loadHistory();
+async function loadAllData(){
+  const [w,a]= await Promise.all([
+    sb.from('workers').select('*').order('created_at'),
+    sb.from('advances').select('*').order('created_at',{ascending:false})
+  ]);
+  workers=w.data||[];
+  advances=a.data||[];
 }
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 //  WEEK UTILS
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 function getWeekStr(date){
-  const d=new Date(date); d.setHours(0,0,0,0);
+  const d=new Date(date);d.setHours(0,0,0,0);
   d.setDate(d.getDate()+4-(d.getDay()||7));
   const ys=new Date(d.getFullYear(),0,1);
   const wk=Math.ceil((((d-ys)/86400000)+1)/7);
   return `${d.getFullYear()}-W${String(wk).padStart(2,'0')}`;
 }
 function weekToLabel(wk){
-  if(!wk) return '-';
-  const [year,w]=wk.split('-W');
+  if(!wk)return '-';
+  const[year,w]=wk.split('-W');
   const simple=new Date(year,0,1+(w-1)*7);
-  const sun=new Date(simple); sun.setDate(simple.getDate()-simple.getDay());
-  const sat=new Date(sun); sat.setDate(sun.getDate()+6);
+  const sun=new Date(simple);sun.setDate(simple.getDate()-simple.getDay());
+  const sat=new Date(sun);sat.setDate(sun.getDate()+6);
   const fmt=d=>d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
-  return `${fmt(sun)} – ${fmt(sat)}`;
+  return`${fmt(sun)} – ${fmt(sat)}`;
 }
 
-// ═══════════════════════════════════════════
-//  SALARY CALC (hours-based)
-// ═══════════════════════════════════════════
-function calcHrsSalary(worker, attArr){
-  const totalHrs=(attArr||[]).reduce((s,d)=>{
-    if(typeof d==='boolean') return s+(d?8:0);
-    if(typeof d==='object'&&d!==null) return s+(d.s*8)+(d.ot||0);
-    return s+(typeof d==='number'?d:0);
-  },0);
-  return { totalHrs, gross:Math.round(totalHrs*(worker.salary/8)) };
+// ══════════════════════════════════════════
+//  SALARY CALC
+// ══════════════════════════════════════════
+function calcHrs(worker, hoursArr){
+  const totalHrs=(hoursArr||[0,0,0,0,0,0,0]).reduce((s,h)=>s+(h||0),0);
+  return{totalHrs,gross:Math.round(totalHrs*(worker.salary/8))};
 }
-function workerWeekAdvance(workerId, week){
-  if(!week) return 0;
-  return data.advances.filter(a=>a.workerId===workerId && getWeekStr(new Date(a.date))===week)
+function workerWeekAdvance(workerId,week){
+  return advances.filter(a=>a.worker_id===workerId&&getWeekStr(new Date(a.date))===week)
     .reduce((s,a)=>s+a.amount,0);
 }
 
-// ═══════════════════════════════════════════
-//  DASHBOARD
-// ═══════════════════════════════════════════
-function renderDashboard(){
-  const week=document.getElementById('weekPicker').value;
-  const att=data.attendance[week]||{};
-  const totalAdv=data.advances.reduce((s,a)=>s+a.amount,0);
-  let weekSalary=0, weekAdv=0;
+// ══════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════
+function showTab(name,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='dashboard')renderDashboard();
+  if(name==='workers')renderWorkers();
+  if(name==='attendance')loadAttendance();
+  if(name==='advances')renderAdvances();
+  if(name==='history')loadHistory();
+}
 
-  const rows=data.workers.map(w=>{
-    const {totalHrs,gross}=calcHrsSalary(w,att[w.id]);
-    const dayFraction=totalHrs/8;
+// ══════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════
+async function renderDashboard(){
+  const week=document.getElementById('weekPicker').value;
+  // fetch attendance for this week
+  const{data:attRows}=await sb.from('attendance').select('*').eq('week',week);
+  const attMap={};
+  (attRows||[]).forEach(r=>attMap[r.worker_id]=r.hours);
+
+  const totalAdv=advances.reduce((s,a)=>s+a.amount,0);
+  let weekSalary=0,weekAdv=0;
+  const rows=workers.map(w=>{
+    const{totalHrs,gross}=calcHrs(w,attMap[w.id]);
     const adv=workerWeekAdvance(w.id,week);
     const net=Math.max(0,gross-adv);
-    weekSalary+=gross; weekAdv+=adv;
-    return {w,dayFraction,totalHrs,gross,adv,net};
+    weekSalary+=gross;weekAdv+=adv;
+    return{w,dayFraction:totalHrs/8,totalHrs,gross,adv,net};
   });
 
   document.getElementById('dashStats').innerHTML=`
-    <div class="stat-card"><div class="stat-icon">👷</div><div><div class="stat-num">${data.workers.length}</div><div class="stat-label">${t('totalWorkers')}</div></div></div>
-    <div class="stat-card"><div class="stat-icon">📅</div><div><div class="stat-num">${Object.keys(data.attendance).length}</div><div class="stat-label">${t('attWeeks')}</div></div></div>
+    <div class="stat-card"><div class="stat-icon">👷</div><div><div class="stat-num">${workers.length}</div><div class="stat-label">${t('totalWorkers')}</div></div></div>
     <div class="stat-card"><div class="stat-icon">💸</div><div><div class="stat-num">₹${totalAdv.toLocaleString()}</div><div class="stat-label">${t('totalAdv')}</div></div></div>
     <div class="stat-card"><div class="stat-icon">💰</div><div><div class="stat-num">₹${(weekSalary-weekAdv).toLocaleString()}</div><div class="stat-label">${t('weekNet')}</div></div></div>`;
 
   document.getElementById('dashWeekLabel').textContent=weekToLabel(week);
-
   document.getElementById('dashWeekSummary').innerHTML=`
     <div class="summary-card"><div class="summary-card-label">${t('totalSalary')}</div><div class="summary-card-value orange">₹${weekSalary.toLocaleString()}</div></div>
     <div class="summary-card"><div class="summary-card-label">${t('totalAdv')}</div><div class="summary-card-value red">₹${weekAdv.toLocaleString()}</div></div>
@@ -650,8 +603,7 @@ function renderDashboard(){
   const dFmt=r=>Number.isInteger(r.dayFraction)?r.dayFraction:r.dayFraction.toFixed(1);
   document.getElementById('dashWorkerBody').innerHTML=rows.length?rows.map(r=>`
     <tr>
-      <td><strong>${r.w.name}</strong></td>
-      <td>${r.w.role||'-'}</td>
+      <td><strong>${r.w.name}</strong></td><td>${r.w.role||'-'}</td>
       <td>₹${r.w.salary.toLocaleString()}</td>
       <td><span class="badge ${r.dayFraction>0?'badge-green':'badge-red'}">${dFmt(r)} ${t('days')} (${r.totalHrs}h)</span></td>
       <td>${r.adv>0?`<span class="badge badge-yellow">₹${r.adv.toLocaleString()}</span>`:'-'}</td>
@@ -659,16 +611,16 @@ function renderDashboard(){
     </tr>`).join(''):`<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:30px">${t('noData')}</td></tr>`;
 }
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 //  WORKERS
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 function renderWorkers(){
   const grid=document.getElementById('workersGrid');
-  if(!data.workers.length){
+  if(!workers.length){
     grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">👷</div><p>${t('addWorkersFirst')}</p></div>`;
     return;
   }
-  grid.innerHTML=data.workers.map(w=>`
+  grid.innerHTML=workers.map(w=>`
     <div class="worker-card">
       <div class="worker-top">
         <div class="worker-avatar">${w.name[0]}</div>
@@ -691,7 +643,7 @@ function openAddWorker(){
   document.getElementById('workerModal').style.display='flex';
 }
 function openEditWorker(id){
-  const w=data.workers.find(x=>x.id===id); if(!w) return;
+  const w=workers.find(x=>x.id===id);if(!w)return;
   editWorkerId=id;
   document.getElementById('wName').value=w.name;
   document.getElementById('wRole').value=w.role||'';
@@ -700,73 +652,70 @@ function openEditWorker(id){
   document.getElementById('workerModalTitle').textContent=t('editWorkerTitle');
   document.getElementById('workerModal').style.display='flex';
 }
-function saveWorker(){
+async function saveWorker(){
   const name=document.getElementById('wName').value.trim();
   const salary=parseFloat(document.getElementById('wSalary').value);
-  if(!name||!salary){ showToast(t('fillRequired'),'error'); return; }
+  if(!name||!salary){showToast(t('fillRequired'),'error');return;}
+  const payload={name,role:document.getElementById('wRole').value.trim(),salary,phone:document.getElementById('wPhone').value.trim()};
+  setSyncing(true);
   if(editWorkerId){
-    const w=data.workers.find(x=>x.id===editWorkerId);
-    if(w){w.name=name;w.role=document.getElementById('wRole').value.trim();w.salary=salary;w.phone=document.getElementById('wPhone').value.trim();}
+    await sb.from('workers').update(payload).eq('id',editWorkerId);
   } else {
-    data.workers.push({id:'w'+Date.now(),name,role:document.getElementById('wRole').value.trim(),salary,phone:document.getElementById('wPhone').value.trim()});
+    payload.id='w'+Date.now();
+    await sb.from('workers').insert(payload);
   }
-  save(); renderWorkers(); closeModal('workerModal');
+  await loadAllData();setSyncing(false);
+  renderWorkers();closeModal('workerModal');
   showToast(editWorkerId?t('workerUpdated'):t('workerAdded'),'success');
 }
-function deleteWorker(id){
-  if(!confirm(t('confirmDeleteWorker'))) return;
-  data.workers=data.workers.filter(w=>w.id!==id);
-  save(); renderWorkers(); showToast(t('workerDeleted'),'error');
+async function deleteWorker(id){
+  if(!confirm(t('confirmDeleteWorker')))return;
+  setSyncing(true);
+  await sb.from('workers').delete().eq('id',id);
+  await loadAllData();setSyncing(false);
+  renderWorkers();showToast(t('workerDeleted'),'error');
 }
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 //  ATTENDANCE
-// ═══════════════════════════════════════════
-function blankWeek(){ return [0,0,0,0,0,0,0]; }
-
-function loadAttendance(){
+// ══════════════════════════════════════════
+async function loadAttendance(){
   const week=document.getElementById('weekPicker').value;
-  const att=data.attendance[week]||{};
+  const{data:rows}=await sb.from('attendance').select('*').eq('week',week);
   currentAttendance={};
-  data.workers.forEach(w=>{
-    if(att[w.id]){
-      currentAttendance[w.id]=att[w.id].map(d=>{
-        if(typeof d==='boolean') return d?8:0;
-        if(typeof d==='object'&&d!==null) return (d.s*8)+(d.ot||0);
-        return typeof d==='number'?d:0;
-      });
-    } else { currentAttendance[w.id]=blankWeek(); }
+  workers.forEach(w=>{
+    const row=rows?rows.find(r=>r.worker_id===w.id):null;
+    currentAttendance[w.id]=row?row.hours:[0,0,0,0,0,0,0];
   });
   renderAttHead();
   renderAttendanceTable();
 }
 
-function hrsClass(h){ if(!h||h<=0) return 'off'; if(h>=8) return 'full'; return 'part'; }
+function hrsClass(h){if(!h||h<=0)return'off';if(h>=8)return'full';return'part';}
 function hrsTag(h){
-  if(!h||h<=0) return `<span class="day-label-tag off">${t('tagOff')}</span>`;
-  if(h>=8) return `<span class="day-label-tag full">${t('tagFull')}</span>`;
-  return `<span class="day-label-tag part">${h}h</span>`;
+  if(!h||h<=0)return`<span class="day-label-tag off">${t('tagOff')}</span>`;
+  if(h>=8)return`<span class="day-label-tag full">${t('tagFull')}</span>`;
+  return`<span class="day-label-tag part">${h}h</span>`;
 }
 
 function renderAttendanceTable(){
   const week=document.getElementById('weekPicker').value;
   const tbody=document.getElementById('attendanceBody');
-  if(!data.workers.length){
+  if(!workers.length){
     tbody.innerHTML=`<tr><td colspan="12" style="text-align:center;color:var(--text-dim);padding:30px">${t('addWorkersFirst')}</td></tr>`;
     return;
   }
-  tbody.innerHTML=data.workers.map(w=>{
-    const days=currentAttendance[w.id]||blankWeek();
-    const totalHrs=days.reduce((s,h)=>s+(h||0),0);
+  tbody.innerHTML=workers.map(w=>{
+    const hrs=currentAttendance[w.id]||[0,0,0,0,0,0,0];
+    const totalHrs=hrs.reduce((s,h)=>s+(h||0),0);
     const dayFraction=totalHrs/8;
-    const hourlyRate=w.salary/8;
-    const gross=Math.round(totalHrs*hourlyRate);
+    const gross=Math.round(totalHrs*(w.salary/8));
     const adv=workerWeekAdvance(w.id,week);
     const net=Math.max(0,gross-adv);
     const dFmt=Number.isInteger(dayFraction)?dayFraction:dayFraction.toFixed(2).replace(/\.?0+$/,'');
-    return `<tr>
-      <td><strong>${w.name}</strong><br><span style="font-size:11px;color:var(--text-dim)">₹${w.salary}/${t('hrPerDay')} · ₹${Math.round(hourlyRate)}/${t('hrRate')}</span></td>
-      ${days.map((h,i)=>`<td style="padding:8px 4px">
+    return`<tr>
+      <td><strong>${w.name}</strong><br><span style="font-size:11px;color:var(--text-dim)">₹${w.salary}/day</span></td>
+      ${hrs.map((h,i)=>`<td style="padding:8px 4px">
         <div class="day-cell">
           ${hrsTag(h)}
           <input class="hrs-input ${hrsClass(h)}" type="number" min="0" max="16" step="1"
@@ -775,7 +724,7 @@ function renderAttendanceTable(){
             onchange="setHours('${w.id}',${i},this.value)" />
         </div></td>`).join('')}
       <td><span class="days-count">${dFmt}</span><br><span style="font-size:11px;color:var(--text-dim)">${totalHrs}h</span></td>
-      <td style="color:var(--text)">₹${gross.toLocaleString()}</td>
+      <td>₹${gross.toLocaleString()}</td>
       <td style="color:var(--red)">${adv>0?`-₹${adv.toLocaleString()}`:'-'}</td>
       <td class="net-salary">₹${net.toLocaleString()}</td>
     </tr>`;
@@ -783,69 +732,74 @@ function renderAttendanceTable(){
 }
 
 function setHours(workerId,dayIdx,val){
-  if(!currentAttendance[workerId]) currentAttendance[workerId]=blankWeek();
-  let h=parseFloat(val); if(isNaN(h)||h<0) h=0; if(h>16) h=16;
+  if(!currentAttendance[workerId])currentAttendance[workerId]=[0,0,0,0,0,0,0];
+  let h=parseFloat(val);if(isNaN(h)||h<0)h=0;if(h>16)h=16;
   currentAttendance[workerId][dayIdx]=h;
-  // Update tag + input color without losing focus
   const rows=document.querySelectorAll('#attendanceBody tr');
-  const wIdx=data.workers.findIndex(w=>w.id===workerId);
+  const wIdx=workers.findIndex(w=>w.id===workerId);
   if(wIdx>=0&&rows[wIdx]){
     const cell=rows[wIdx].querySelectorAll('td')[dayIdx+1];
     if(cell){
       const tag=cell.querySelector('.day-label-tag');
-      if(tag){ tag.className='day-label-tag '+hrsClass(h); tag.textContent=h<=0?t('tagOff'):h>=8?t('tagFull'):h+'h'; }
+      if(tag){tag.className='day-label-tag '+hrsClass(h);tag.textContent=h<=0?t('tagOff'):h>=8?t('tagFull'):h+'h';}
       const inp=cell.querySelector('.hrs-input');
-      if(inp) inp.className='hrs-input '+hrsClass(h);
+      if(inp)inp.className='hrs-input '+hrsClass(h);
     }
     updateRowSummary(workerId,wIdx,rows[wIdx]);
   }
 }
-
 function updateRowSummary(workerId,wIdx,row){
   const week=document.getElementById('weekPicker').value;
-  const w=data.workers[wIdx];
-  const days=currentAttendance[workerId]||blankWeek();
-  const totalHrs=days.reduce((s,h)=>s+(h||0),0);
+  const w=workers[wIdx];
+  const hrs=currentAttendance[workerId]||[0,0,0,0,0,0,0];
+  const totalHrs=hrs.reduce((s,h)=>s+(h||0),0);
   const dayFraction=totalHrs/8;
   const gross=Math.round(totalHrs*(w.salary/8));
   const adv=workerWeekAdvance(workerId,week);
   const net=Math.max(0,gross-adv);
   const dFmt=Number.isInteger(dayFraction)?dayFraction:dayFraction.toFixed(2).replace(/\.?0+$/,'');
   const cells=row.querySelectorAll('td');
-  if(cells[8]) cells[8].innerHTML=`<span class="days-count">${dFmt}</span><br><span style="font-size:11px;color:var(--text-dim)">${totalHrs}h</span>`;
-  if(cells[9]) cells[9].innerHTML=`₹${gross.toLocaleString()}`;
-  if(cells[10]) cells[10].innerHTML=adv>0?`-₹${adv.toLocaleString()}`:'-';
-  if(cells[11]) cells[11].innerHTML=`₹${net.toLocaleString()}`;
+  if(cells[8])cells[8].innerHTML=`<span class="days-count">${dFmt}</span><br><span style="font-size:11px;color:var(--text-dim)">${totalHrs}h</span>`;
+  if(cells[9])cells[9].innerHTML=`₹${gross.toLocaleString()}`;
+  if(cells[10])cells[10].innerHTML=adv>0?`-₹${adv.toLocaleString()}`:'-';
+  if(cells[11])cells[11].innerHTML=`₹${net.toLocaleString()}`;
 }
 
-function saveAttendance(){
+async function saveAttendance(){
   const week=document.getElementById('weekPicker').value;
+  // read current inputs
   document.querySelectorAll('#attendanceBody tr').forEach((row,wIdx)=>{
-    const w=data.workers[wIdx]; if(!w) return;
+    const w=workers[wIdx];if(!w)return;
     row.querySelectorAll('.hrs-input').forEach((inp,dayIdx)=>{
       const h=parseFloat(inp.value)||0;
-      if(!currentAttendance[w.id]) currentAttendance[w.id]=blankWeek();
+      if(!currentAttendance[w.id])currentAttendance[w.id]=[0,0,0,0,0,0,0];
       currentAttendance[w.id][dayIdx]=h;
     });
   });
-  data.attendance[week]={};
-  Object.keys(currentAttendance).forEach(wId=>{ data.attendance[week][wId]=[...currentAttendance[wId]]; });
-  save(); renderDashboard(); showToast(t('attSaved'),'success');
+  setSyncing(true);
+  // upsert all workers attendance
+  const upserts=workers.map(w=>({
+    week, worker_id:w.id, hours:currentAttendance[w.id]||[0,0,0,0,0,0,0],
+    updated_at:new Date().toISOString()
+  }));
+  await sb.from('attendance').upsert(upserts,{onConflict:'week,worker_id'});
+  setSyncing(false);
+  renderDashboard();
+  showToast(t('attSaved'),'success');
 }
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 //  ADVANCES
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 function renderAdvances(){
   const tbody=document.getElementById('advancesBody');
-  if(!data.advances.length){
+  if(!advances.length){
     tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:30px">${t('noData')}</td></tr>`;
     return;
   }
-  const sorted=[...data.advances].sort((a,b)=>new Date(b.date)-new Date(a.date));
-  tbody.innerHTML=sorted.map(a=>{
-    const w=data.workers.find(x=>x.id===a.workerId);
-    return `<tr>
+  tbody.innerHTML=advances.map(a=>{
+    const w=workers.find(x=>x.id===a.worker_id);
+    return`<tr>
       <td>${new Date(a.date).toLocaleDateString('en-IN')}</td>
       <td><strong>${w?w.name:'-'}</strong></td>
       <td>${a.reason||'-'}</td>
@@ -859,56 +813,58 @@ function renderAdvances(){
 function openAddAdvance(){
   const sel=document.getElementById('advWorker');
   sel.innerHTML=`<option value="">-- ${t('worker')} --</option>`+
-    data.workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
-  document.getElementById('advAmount').value='';
-  document.getElementById('advReason').value='';
+    workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
+  ['advAmount','advReason'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('advDate').value=new Date().toISOString().split('T')[0];
-  document.getElementById('advModalTitle').textContent=t('advance')+' '+t('addAdvance');
   document.getElementById('advanceModal').style.display='flex';
 }
-function openAddAdvanceFor(id){
-  openAddAdvance();
-  document.getElementById('advWorker').value=id;
-}
-function saveAdvance(){
+function openAddAdvanceFor(id){openAddAdvance();document.getElementById('advWorker').value=id;}
+
+async function saveAdvance(){
   const wId=document.getElementById('advWorker').value;
   const amt=parseFloat(document.getElementById('advAmount').value);
   const date=document.getElementById('advDate').value;
-  if(!wId||!amt||!date){ showToast(t('fillRequired'),'error'); return; }
-  data.advances.push({id:'a'+Date.now(),workerId:wId,amount:amt,date,reason:document.getElementById('advReason').value.trim()});
-  save(); renderAdvances(); renderAttendanceTable(); closeModal('advanceModal');
+  if(!wId||!amt||!date){showToast(t('fillRequired'),'error');return;}
+  setSyncing(true);
+  await sb.from('advances').insert({
+    id:'a'+Date.now(), worker_id:wId, amount:amt, date,
+    reason:document.getElementById('advReason').value.trim()
+  });
+  await loadAllData();setSyncing(false);
+  renderAdvances();renderAttendanceTable();closeModal('advanceModal');
   showToast(t('advAdded'),'success');
 }
-function deleteAdvance(id){
-  if(!confirm(t('confirmDeleteAdv'))) return;
-  data.advances=data.advances.filter(a=>a.id!==id);
-  save(); renderAdvances(); renderAttendanceTable(); showToast(t('advDeleted'),'error');
+async function deleteAdvance(id){
+  if(!confirm(t('confirmDeleteAdv')))return;
+  setSyncing(true);
+  await sb.from('advances').delete().eq('id',id);
+  await loadAllData();setSyncing(false);
+  renderAdvances();renderAttendanceTable();
+  showToast(t('advDeleted'),'error');
 }
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 //  HISTORY
-// ═══════════════════════════════════════════
-function loadHistory(){
+// ══════════════════════════════════════════
+async function loadHistory(){
   const week=document.getElementById('historyWeek').value;
-  const att=data.attendance[week]||{};
+  const{data:rows}=await sb.from('attendance').select('*').eq('week',week);
+  const attMap={};(rows||[]).forEach(r=>attMap[r.worker_id]=r.hours);
   let totalGross=0,totalAdv=0,totalNet=0;
-  const rows=data.workers.map(w=>{
-    const {totalHrs,gross}=calcHrsSalary(w,att[w.id]);
-    const dayFraction=totalHrs/8;
+  const histRows=workers.map(w=>{
+    const{totalHrs,gross}=calcHrs(w,attMap[w.id]);
     const adv=workerWeekAdvance(w.id,week);
     const net=Math.max(0,gross-adv);
-    totalGross+=gross; totalAdv+=adv; totalNet+=net;
-    return {w,dayFraction,totalHrs,gross,adv,net};
+    totalGross+=gross;totalAdv+=adv;totalNet+=net;
+    return{w,dayFraction:totalHrs/8,totalHrs,gross,adv,net};
   });
-
   document.getElementById('historySummary').innerHTML=`
     <div class="summary-card"><div class="summary-card-label">${t('week')}</div><div class="summary-card-value" style="font-size:15px">${weekToLabel(week)}</div></div>
     <div class="summary-card"><div class="summary-card-label">${t('totalSalary')}</div><div class="summary-card-value orange">₹${totalGross.toLocaleString()}</div></div>
     <div class="summary-card"><div class="summary-card-label">${t('totalAdv')}</div><div class="summary-card-value red">₹${totalAdv.toLocaleString()}</div></div>
     <div class="summary-card"><div class="summary-card-label">${t('netToPay')}</div><div class="summary-card-value green">₹${totalNet.toLocaleString()}</div></div>`;
-
   const dFmt=r=>Number.isInteger(r.dayFraction)?r.dayFraction:r.dayFraction.toFixed(1);
-  document.getElementById('historyBody').innerHTML=rows.length?rows.map(r=>`
+  document.getElementById('historyBody').innerHTML=histRows.length?histRows.map(r=>`
     <tr>
       <td><strong>${r.w.name}</strong><br><span style="font-size:11px;color:var(--text-dim)">${r.w.role||''}</span></td>
       <td><span class="badge ${r.dayFraction>0?'badge-green':'badge-red'}">${dFmt(r)} ${t('days')}</span><br><span style="font-size:11px;color:var(--text-dim)">${r.totalHrs}h</span></td>
@@ -918,10 +874,10 @@ function loadHistory(){
     </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:30px">${t('noData')}</td></tr>`;
 }
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════
 //  UTILS
-// ═══════════════════════════════════════════
-function closeModal(id){ document.getElementById(id).style.display='none'; }
+// ══════════════════════════════════════════
+function closeModal(id){document.getElementById(id).style.display='none';}
 function showToast(msg,type='info'){
   const el=document.getElementById('toast');
   const icons={success:'✅',error:'❌',info:'🔔'};
@@ -931,22 +887,23 @@ function showToast(msg,type='info'){
   setTimeout(()=>el.classList.remove('show'),3000);
 }
 document.querySelectorAll('.modal-overlay').forEach(m=>{
-  m.addEventListener('click',e=>{ if(e.target===m) m.style.display='none'; });
+  m.addEventListener('click',e=>{if(e.target===m)m.style.display='none';});
 });
 
-// ═══════════════════════════════════════════
-//  BOOT
-// ═══════════════════════════════════════════
-load();
-if(!data.workers.length){
-  data.workers=[
-    {id:'w1',name:'Murugan',role:'Mason',salary:700,phone:'9876543210'},
-    {id:'w2',name:'Velu',role:'Helper',salary:500,phone:'9876543211'},
-    {id:'w3',name:'Suresh',role:'Carpenter',salary:650,phone:'9876543212'},
-  ];
-  save();
-}
-applyTranslations();
+// ══════════════════════════════════════════
+//  BOOT — test Supabase connection
+// ══════════════════════════════════════════
+(async()=>{
+  document.getElementById('loaderMsg').textContent='Connecting to cloud...';
+  try{
+    await sb.from('workers').select('id').limit(1);
+    document.getElementById('globalLoader').style.display='none';
+    document.getElementById('loginPage').style.display='flex';
+    applyTranslations();
+  }catch(e){
+    document.getElementById('loaderMsg').textContent='Connection failed. Check internet.';
+  }
+})();
 </script>
 </body>
 </html>
